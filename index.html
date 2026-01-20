@@ -7,10 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #eaffd0;
+        }
         body {
             touch-action: none;
-            /* 黄緑ベースのグミパズル風背景 */
-            background-color: #eaffd0;
+            background-color: var(--bg-color);
             background-image: 
                 radial-gradient(rgba(255, 255, 255, 0.5) 20%, transparent 20%),
                 radial-gradient(rgba(255, 255, 255, 0.5) 20%, transparent 20%);
@@ -20,24 +22,86 @@
             font-family: 'Zen Maru Gothic', sans-serif;
             overflow: hidden; 
             height: 100vh;
+            height: 100dvh;
             margin: 0;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
         }
+
+        /* 画面全体を管理するコンテナ */
+        .main-wrapper {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            max-width: 500px; /* PCで見ても広がりすぎないように */
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        /* ヘッダー部分 */
+        .header {
+            flex-shrink: 0;
+            margin-bottom: 8px;
+        }
+
+        /* ゲームエリア（キャンバスとサイドバー） */
+        .game-area {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            min-height: 0; /* flex内で縮小できるように */
+            overflow: hidden;
+        }
+
+        /* キャンバスの親 */
+        .canvas-container {
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
         #game-canvas {
             border: 5px solid #fff;
             background-color: rgba(255, 255, 255, 0.4);
             border-radius: 12px;
             box-shadow: 0 8px 20px rgba(0, 128, 0, 0.1);
+            max-height: 100%; /* 親の高さに合わせる */
+            max-width: 100%;
+            width: auto;
+            height: auto;
+            aspect-ratio: 200 / 360;
             cursor: pointer;
         }
-        .side-canvas {
-            border: 3px solid #fff;
-            background-color: rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
+
+        /* サイドバー */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 70px;
+            flex-shrink: 0;
         }
+
+        .side-canvas {
+            border: 2px solid #fff;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+        }
+
+        /* コントローラー部分 */
+        .controls {
+            flex-shrink: 0;
+            margin-top: 10px;
+            padding-bottom: 5px;
+        }
+
         .control-btn {
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -48,32 +112,32 @@
             box-shadow: none;
             transform: translateY(4px);
         }
-        /* 魔法ボタンのデザインを他のボタンと統一し、色だけ変える */
+
         .magic-btn {
             box-shadow: 0 4px 0 #8b5cf6;
             background: linear-gradient(135deg, #c084fc, #9333ea);
         }
-        .magic-btn:active {
-            box-shadow: none;
-            transform: translateY(4px);
-        }
+
         .quit-btn {
             box-shadow: 0 4px 0 #dc2626;
             background: #ef4444;
         }
+
         .score-box {
             background: rgba(255, 255, 255, 0.85);
-            border: 3px solid #a8e6cf;
+            border: 2px solid #a8e6cf;
         }
+
         .overlay {
             backdrop-blur: 10px;
             background-color: rgba(255, 255, 255, 0.95);
         }
+
         .switch {
             position: relative;
             display: inline-block;
-            width: 50px;
-            height: 28px;
+            width: 40px;
+            height: 22px;
         }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider {
@@ -82,23 +146,23 @@
             top: 0; left: 0; right: 0; bottom: 0;
             background-color: #ccc;
             transition: .4s;
-            border-radius: 34px;
+            border-radius: 22px;
         }
         .slider:before {
             position: absolute;
             content: "";
-            height: 20px; width: 20px;
-            left: 4px; bottom: 4px;
+            height: 16px; width: 16px;
+            left: 3px; bottom: 3px;
             background-color: white;
             transition: .4s;
             border-radius: 50%;
         }
         input:checked + .slider { background-color: #55e055; }
-        input:checked + .slider:before { transform: translateX(22px); }
+        input:checked + .slider:before { transform: translateX(18px); }
 
         @keyframes tetrisPop {
             0% { transform: scale(0.3); opacity: 0; }
-            50% { transform: scale(1.2); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 1; }
             100% { transform: scale(1); opacity: 0; }
         }
         .tetris-text {
@@ -108,139 +172,133 @@
         }
     </style>
 </head>
-<body class="p-1">
+<body>
 
-    <!-- タイマー -->
-    <div class="mb-2 text-center w-full">
-        <div class="score-box px-4 py-1 rounded-full font-bold flex items-center justify-center gap-3 text-green-700 shadow-sm mx-auto max-w-fit">
-            <span class="text-sm">⏰ のこり</span>
-            <span id="timer" class="text-3xl font-mono text-red-500">03:00</span>
-        </div>
-    </div>
-
-    <div class="flex items-center justify-center gap-3 w-full">
-        <!-- ゲームエリア -->
-        <div class="relative">
-            <canvas id="game-canvas" width="200" height="360"></canvas>
-            
-            <div id="tetris-effect" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-                <span class="tetris-text text-4xl font-black text-pink-500 drop-shadow-[0_0_15px_rgba(255,255,255,1)] italic text-center">✨パーフェクト✨</span>
+    <div class="main-wrapper">
+        <!-- 1. ヘッダー -->
+        <div class="header text-center">
+            <div class="score-box px-4 py-1 rounded-full font-bold flex items-center justify-center gap-3 text-green-700 shadow-sm mx-auto max-w-fit">
+                <span class="text-xs">⏰ のこり</span>
+                <span id="timer" class="text-2xl font-mono text-red-500">03:00</span>
             </div>
+        </div>
 
-            <!-- スタート画面 -->
-            <div id="start-screen" class="absolute inset-0 overlay rounded-[12px] flex flex-col items-center justify-center text-center p-5 z-20">
-                <div class="text-sm leading-relaxed space-y-3 mb-4 text-left border-y-2 border-green-200 py-3 w-full mt-2">
-                    <div class="flex flex-col gap-1">
-                        <p class="font-bold text-green-700 text-[12px]">💎 スコア表</p>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="bg-pink-100 rounded-lg px-2 py-1 flex justify-between items-center border border-pink-200 shadow-sm">
-                                <span class="text-[10px] text-pink-600">1列</span>
-                                <span class="font-bold text-pink-700">10点</span>
-                            </div>
-                            <div class="bg-orange-100 rounded-lg px-2 py-1 flex justify-between items-center border border-orange-200 shadow-sm">
-                                <span class="text-[10px] text-orange-600">2列</span>
-                                <span class="font-bold text-orange-700">30点</span>
-                            </div>
-                            <div class="bg-blue-100 rounded-lg px-2 py-1 flex justify-between items-center border border-blue-200 shadow-sm">
-                                <span class="text-[10px] text-blue-600">3列</span>
-                                <span class="font-bold text-blue-700">60点</span>
-                            </div>
-                            <div class="bg-yellow-100 rounded-lg px-2 py-1 flex justify-between items-center border border-yellow-300 shadow-sm">
-                                <span class="text-[10px] text-yellow-600 font-black">4列</span>
-                                <span class="font-bold text-yellow-800">100点</span>
+        <!-- 2. ゲームエリア -->
+        <div class="game-area">
+            <!-- メイン -->
+            <div class="canvas-container">
+                <canvas id="game-canvas" width="200" height="360"></canvas>
+                
+                <div id="tetris-effect" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                    <span class="tetris-text text-4xl font-black text-pink-500 drop-shadow-[0_0_15px_rgba(255,255,255,1)] italic text-center">✨パーフェクト✨</span>
+                </div>
+
+                <!-- 各種画面オーバーレイ -->
+                <div id="start-screen" class="absolute inset-0 overlay rounded-[12px] flex flex-col items-center justify-center text-center p-4 z-20">
+                    <div class="text-[10px] leading-relaxed space-y-2 mb-4 text-left border-y-2 border-green-200 py-3 w-full">
+                        <div class="flex flex-col gap-1">
+                            <p class="font-bold text-green-700 text-[10px]">💎 スコア表</p>
+                            <div class="grid grid-cols-2 gap-1.5">
+                                <div class="bg-pink-100 rounded px-1.5 py-0.5 flex justify-between items-center border border-pink-200">
+                                    <span class="text-[8px] text-pink-600">1列</span><span class="font-bold text-[10px] text-pink-700">10点</span>
+                                </div>
+                                <div class="bg-orange-100 rounded px-1.5 py-0.5 flex justify-between items-center border border-orange-200">
+                                    <span class="text-[8px] text-orange-600">2列</span><span class="font-bold text-[10px] text-orange-700">30点</span>
+                                </div>
+                                <div class="bg-blue-100 rounded px-1.5 py-0.5 flex justify-between items-center border border-blue-200">
+                                    <span class="text-[8px] text-blue-600">3列</span><span class="font-bold text-[10px] text-blue-700">60点</span>
+                                </div>
+                                <div class="bg-yellow-100 rounded px-1.5 py-0.5 flex justify-between items-center border border-yellow-300">
+                                    <span class="text-[8px] font-black">4列</span><span class="font-bold text-[10px] text-yellow-800">100点</span>
+                                </div>
                             </div>
                         </div>
+                        <div class="bg-purple-100 p-2 rounded-lg border-2 border-purple-300 text-center">
+                            <p class="font-bold text-purple-600 mb-0.5 text-[11px]">🪄 まほうのボタン 🪄</p>
+                            <p class="text-[9px]">虹色ブロックで すきまをうめるよ！</p>
+                        </div>
+                        <div class="flex items-center justify-between mt-1 bg-white/50 p-1.5 rounded-lg border border-green-100">
+                            <span class="font-bold text-[10px]">まほうをつかう</span>
+                            <label class="switch">
+                                <input type="checkbox" id="special-toggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                     </div>
+                    <button onclick="startGame()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-8 rounded-full shadow-lg transition animate-bounce text-lg whitespace-nowrap">
+                        スタート！
+                    </button>
+                </div>
 
-                    <div class="bg-purple-100 p-2 rounded-xl border-2 border-purple-300 shadow-sm text-center">
-                        <p class="font-bold text-purple-600 mb-1 text-[13px]">🪄 まほうのボタン 🪄</p>
-                        <p class="text-[11px]">「🪄」をおすと、すきまを 7つ<br>虹色のブロックでうめるよ！</p>
+                <div id="game-over" class="hidden absolute inset-0 overlay rounded-[12px] flex flex-col items-center justify-center text-center z-20 p-4">
+                    <h2 class="text-2xl font-bold text-green-600 mb-2">おしまいっ🧸</h2>
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-500">さいしゅうスコア</p>
+                        <p class="text-4xl font-mono font-bold text-green-600"><span id="final-score">0</span>点</p>
                     </div>
-                    
-                    <div class="flex items-center justify-between mt-1 bg-white/50 p-2 rounded-xl border border-green-100">
-                        <span class="font-bold text-sm">まほうをつかう</span>
-                        <label class="switch">
-                            <input type="checkbox" id="special-toggle" checked>
-                            <span class="slider"></span>
-                        </label>
+                    <button onclick="resetGame()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-8 rounded-full shadow-lg text-lg whitespace-nowrap">
+                        もういちど遊ぶ
+                    </button>
+                </div>
+
+                <div id="pause-screen" class="hidden absolute inset-0 overlay rounded-[12px] flex flex-col items-center justify-center text-center z-20 p-4">
+                    <h2 class="text-2xl font-bold text-green-600 mb-6">おやすみ中...💤</h2>
+                    <button onclick="togglePause()" class="bg-blue-400 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full shadow-lg text-lg whitespace-nowrap">
+                        つづきから
+                    </button>
+                </div>
+
+                <div id="quit-confirm" class="hidden absolute inset-0 overlay rounded-[12px] flex flex-col items-center justify-center text-center z-40 p-4">
+                    <h2 class="text-xl font-bold text-red-500 mb-4">しゅうりょうする？</h2>
+                    <div class="flex gap-4 justify-center">
+                        <button onclick="confirmQuit()" class="bg-red-500 text-white font-bold py-2 px-6 rounded-full text-sm">やめる</button>
+                        <button onclick="cancelQuit()" class="bg-gray-400 text-white font-bold py-2 px-6 rounded-full text-sm">つづける</button>
                     </div>
                 </div>
-                <button onclick="startGame()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-10 rounded-full shadow-lg transition animate-bounce text-xl whitespace-nowrap">
-                    スタート！
-                </button>
             </div>
 
-            <!-- ゲームオーバー画面 -->
-            <div id="game-over" class="hidden absolute inset-0 overlay rounded-[12px] flex flex-col items-center justify-center text-center z-20 p-4">
-                <h2 id="game-over-title" class="text-3xl font-bold text-green-600 mb-3">おしまいっ🧸</h2>
-                <div class="mb-5">
-                    <p class="text-lg text-gray-500">さいしゅうスコア</p>
-                    <p class="text-5xl font-mono font-bold text-green-600 text-center"><span id="final-score">0</span>点</p>
+            <!-- サイドバー -->
+            <div class="sidebar">
+                <div class="score-box p-1.5 rounded-xl text-center shadow-sm">
+                    <p class="text-[9px] font-bold text-green-600 leading-none mb-1">スコア</p>
+                    <p class="text-xs font-mono font-bold text-green-500"><span id="score">0</span>点</p>
                 </div>
-                <button onclick="resetGame()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition text-xl whitespace-nowrap">
-                    もういちど遊ぶ
-                </button>
-            </div>
-
-            <!-- ポーズ画面 -->
-            <div id="pause-screen" class="hidden absolute inset-0 overlay rounded-[12px] flex flex-col items-center justify-center text-center z-20">
-                <h2 class="text-3xl font-bold text-green-600 mb-6">おやすみ中...💤</h2>
-                <button onclick="togglePause()" class="bg-blue-400 hover:bg-blue-500 text-white font-bold py-3 px-10 rounded-full shadow-lg transition text-xl whitespace-nowrap">
-                    つづきから
-                </button>
-            </div>
-
-            <!-- 終了確認ダイアログ -->
-            <div id="quit-confirm" class="hidden absolute inset-0 overlay rounded-[12px] flex flex-col items-center justify-center text-center z-40 p-4">
-                <h2 class="text-2xl font-bold text-red-500 mb-4">しゅうりょうする？</h2>
-                <p class="text-sm text-gray-600 mb-6">ほんとうに やめちゃう？</p>
-                <div class="flex gap-4 justify-center">
-                    <button onclick="confirmQuit()" class="bg-red-500 text-white font-bold py-2 px-6 rounded-full shadow-lg">やめる</button>
-                    <button onclick="cancelQuit()" class="bg-gray-400 text-white font-bold py-2 px-6 rounded-full shadow-lg">つづける</button>
+                <div id="magic-count-box" class="score-box p-1.5 rounded-xl text-center shadow-sm">
+                    <p class="text-[9px] font-bold text-purple-600 leading-none mb-1">まほう</p>
+                    <p id="magic-charges" class="text-sm font-bold text-purple-500">3</p>
+                </div>
+                <div class="score-box p-1.5 rounded-xl text-center shadow-sm">
+                    <p class="text-[9px] font-bold text-green-600 mb-1">つぎ</p>
+                    <canvas id="next-1" width="40" height="40" class="side-canvas mx-auto"></canvas>
+                </div>
+                <div class="score-box p-1.5 rounded-xl text-center shadow-sm">
+                    <p class="text-[9px] font-bold text-green-600 mb-1">そのつぎ</p>
+                    <canvas id="next-2" width="40" height="40" class="side-canvas mx-auto"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- サイドバー -->
-        <div class="flex flex-col gap-2">
-            <div class="score-box px-3 py-1 rounded-xl text-center shadow-sm">
-                <p class="text-[11px] font-bold text-green-600">スコア</p>
-                <p class="text-lg font-mono font-bold text-green-500 whitespace-nowrap"><span id="score">0</span>点</p>
+        <!-- 3. コントローラー -->
+        <div class="controls">
+            <div class="flex flex-col items-center gap-2">
+                <!-- サブ操作 -->
+                <div class="flex gap-6 items-center">
+                    <button id="btn-rotate" class="control-btn bg-yellow-400 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">↻</button>
+                    <button id="btn-pause" onclick="togglePause()" class="control-btn bg-blue-300 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">⏸</button>
+                    <button id="btn-quit" onclick="manualEndGame()" class="control-btn quit-btn text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">⏹</button>
+                </div>
+                
+                <!-- メイン操作（1列） -->
+                <div class="grid grid-cols-4 gap-2 w-full max-w-[320px]">
+                    <button id="btn-left" class="control-btn bg-green-500 text-white h-12 rounded-xl flex items-center justify-center text-3xl">←</button>
+                    <button id="btn-down" class="control-btn bg-green-500 text-white h-12 rounded-xl flex items-center justify-center text-3xl">↓</button>
+                    <button id="btn-right" class="control-btn bg-green-500 text-white h-12 rounded-xl flex items-center justify-center text-3xl">→</button>
+                    <button id="btn-magic" class="control-btn magic-btn text-white h-12 rounded-xl flex flex-col items-center justify-center">
+                        <span class="text-xl leading-none">🪄</span>
+                        <span class="text-[8px] font-bold">まほう</span>
+                    </button>
+                </div>
             </div>
-            <div id="magic-count-box" class="score-box px-3 py-1 rounded-xl text-center shadow-sm">
-                <p class="text-[11px] font-bold text-purple-600">まほう</p>
-                <p id="magic-charges" class="text-xl font-bold text-purple-500">3</p>
-            </div>
-            <div class="score-box p-1 rounded-xl text-center shadow-sm">
-                <p class="text-[11px] font-bold text-green-600 mb-1 text-[9px]">つぎ</p>
-                <canvas id="next-1" width="50" height="50" class="side-canvas mx-auto"></canvas>
-            </div>
-            <div class="score-box p-1 rounded-xl text-center shadow-sm">
-                <p class="text-[11px] font-bold text-green-600 mb-1 text-[9px]">そのつぎ</p>
-                <canvas id="next-2" width="50" height="50" class="side-canvas mx-auto"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- コントローラー -->
-    <div class="mt-4 flex flex-col items-center gap-3 w-full max-w-sm px-2">
-        <!-- 上段ボタン -->
-        <div class="flex gap-6 items-center">
-            <button id="btn-rotate" class="control-btn bg-yellow-400 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl">↻</button>
-            <button id="btn-pause" onclick="togglePause()" class="control-btn bg-blue-300 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl">⏸</button>
-            <button id="btn-quit" onclick="manualEndGame()" class="control-btn quit-btn text-white w-12 h-12 rounded-full flex items-center justify-center text-xl">⏹</button>
-        </div>
-        
-        <!-- 下段ボタン：4つを同じ高さに並べる -->
-        <div class="grid grid-cols-4 gap-2 w-full max-w-[310px]">
-            <button id="btn-left" class="control-btn bg-green-500 text-white h-14 rounded-2xl flex items-center justify-center text-3xl">←</button>
-            <button id="btn-down" class="control-btn bg-green-500 text-white h-14 rounded-2xl flex items-center justify-center text-3xl">↓</button>
-            <button id="btn-right" class="control-btn bg-green-500 text-white h-14 rounded-2xl flex items-center justify-center text-3xl">→</button>
-            <!-- 魔法ボタン：デザインを他と統一し、文字を少し大きくしました -->
-            <button id="btn-magic" class="control-btn magic-btn text-white h-14 rounded-2xl flex flex-col items-center justify-center">
-                <span class="text-xl">🪄</span>
-                <span class="text-[10px] font-bold">まほう</span>
-            </button>
         </div>
     </div>
 
@@ -254,7 +312,6 @@
         const magicChargesElement = document.getElementById('magic-charges');
         const startScreen = document.getElementById('start-screen');
         const gameOverScreen = document.getElementById('game-over');
-        const gameOverTitle = document.getElementById('game-over-title');
         const pauseScreen = document.getElementById('pause-screen');
         const quitConfirm = document.getElementById('quit-confirm');
         const finalScoreElement = document.getElementById('final-score');
@@ -264,8 +321,8 @@
 
         const GRID_SIZE = 20; 
         context.scale(GRID_SIZE, GRID_SIZE);
-        nextCtx1.scale(12.5, 12.5);
-        nextCtx2.scale(12.5, 12.5);
+        nextCtx1.scale(10, 10);
+        nextCtx2.scale(10, 10);
 
         const colors = [
             null,
@@ -276,7 +333,7 @@
             '#55e055', // Z
             '#ff85e4', // S
             '#6a9dff', // T
-            '#ffffff', // 魔法マス
+            '#ffffff', // 魔法
         ];
 
         function createPiece(type) {
@@ -304,9 +361,12 @@
         let clearAnimCounter = 0;
         let tetrisFlashCounter = 0;
         let globalTick = 0;
-
+        let isStarted = false;
+        let isGameOver = false;
+        let isPaused = false;
         let isLeftActive = false;
         let isRightActive = false;
+        let isDownActive = false;
         let moveTimer = 0;
         const MOVE_DELAY = 180; 
         const MOVE_INTERVAL = 60; 
@@ -340,7 +400,6 @@
                 });
             }
             drawNext();
-            
             if (player.rotateFlash > 0) player.rotateFlash--;
         }
 
@@ -382,9 +441,7 @@
                             grad.addColorStop(0, colors[value]);
                             grad.addColorStop(1, lightenColor(colors[value], 20));
                             ctx.fillStyle = grad;
-                            if (!isGhost && player.rotateFlash > 0) {
-                                ctx.fillStyle = '#ffffffaa';
-                            }
+                            if (!isGhost && player.rotateFlash > 0) ctx.fillStyle = '#ffffffaa';
                             ctx.beginPath();
                             ctx.roundRect(px + 0.05, py + 0.05, 0.9, 0.9, 0.25);
                             ctx.fill();
@@ -409,9 +466,7 @@
         function lightenColor(hex, percent) {
             const num = parseInt(hex.replace('#', ''), 16),
                 amt = Math.round(2.55 * percent),
-                R = (num >> 16) + amt,
-                G = (num >> 8 & 0x00FF) + amt,
-                B = (num & 0x0000FF) + amt;
+                R = (num >> 16) + amt, G = (num >> 8 & 0x00FF) + amt, B = (num & 0x0000FF) + amt;
             return "#" + (0x1000000 + (R < 255 ? R < 0 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 0 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 0 ? 0 : B : 255)).toString(16).slice(1);
         }
 
@@ -431,10 +486,7 @@
             const [m, o] = [p.matrix, p.pos];
             for (let y = 0; y < m.length; ++y) {
                 for (let x = 0; x < m[y].length; ++x) {
-                    if (m[y][x] !== 0 &&
-                       (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) {
-                        return true;
-                    }
+                    if (m[y][x] !== 0 && (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) return true;
                 }
             }
             return false;
@@ -447,12 +499,7 @@
                 for (let x = 0; x < arena[y].length; x++) {
                     if (arena[y][x] === 0) {
                         let hasBlockAbove = false;
-                        for (let up = y - 1; up >= 0; up--) {
-                            if (arena[up][x] !== 0) {
-                                hasBlockAbove = true;
-                                break;
-                            }
-                        }
+                        for (let up = y - 1; up >= 0; up--) if (arena[up][x] !== 0) { hasBlockAbove = true; break; }
                         if (hasBlockAbove || y === arena.length - 1) gaps.push({x, y});
                     }
                 }
@@ -460,13 +507,9 @@
             if (gaps.length === 0) return;
             gaps.sort(() => Math.random() - 0.5);
             const count = Math.min(gaps.length, 7);
-            for (let i = 0; i < count; i++) {
-                const {x, y} = gaps[i];
-                arena[y][x] = 9;
-            }
+            for (let i = 0; i < count; i++) arena[gaps[i].y][gaps[i].x] = 9;
             player.magicCharges--;
             updateMagicDisplay();
-            // 魔法使用後にライン消去チェックとスコア加算を確実に実行
             arenaSweep();
         }
 
@@ -480,25 +523,19 @@
 
         function rotate(matrix, dir) {
             for (let y = 0; y < matrix.length; ++y) {
-                for (let x = 0; x < y; ++x) {
-                    [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
-                }
+                for (let x = 0; x < y; ++x) [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
             }
-            if (dir > 0) matrix.forEach(row => row.reverse());
-            else matrix.reverse();
+            if (dir > 0) matrix.forEach(row => row.reverse()); else matrix.reverse();
         }
 
         function arenaSweep() {
             let rowCount = 0;
             let tempClearingRows = [];
             outer: for (let y = arena.length - 1; y > 0; --y) {
-                for (let x = 0; x < arena[y].length; ++x) {
-                    if (arena[y][x] === 0) continue outer;
-                }
+                for (let x = 0; x < arena[y].length; ++x) if (arena[y][x] === 0) continue outer;
                 tempClearingRows.push(y);
                 rowCount++;
             }
-            
             if (rowCount > 0) {
                 clearingRows = tempClearingRows;
                 clearAnimCounter = 10;
@@ -537,10 +574,7 @@
         function playerMove(dir) {
             if (isGameOver || isPaused || !isStarted || clearingRows.length > 0) return;
             player.pos.x += dir;
-            if (collide(arena, player)) {
-                player.pos.x -= dir;
-                return false;
-            }
+            if (collide(arena, player)) { player.pos.x -= dir; return false; }
             return true;
         }
 
@@ -552,11 +586,7 @@
             while (collide(arena, player)) {
                 player.pos.x += offset;
                 offset = -(offset + (offset > 0 ? 1 : -1));
-                if (offset > player.matrix[0].length) {
-                    rotate(player.matrix, -dir);
-                    player.pos.x = pos;
-                    return;
-                }
+                if (offset > player.matrix[0].length) { rotate(player.matrix, -dir); player.pos.x = pos; return; }
             }
             player.rotateFlash = 3; 
         }
@@ -568,13 +598,10 @@
             player.queue.push(createPiece(pieces[pieces.length * Math.random() | 0]));
             player.pos.y = 0;
             player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
-            if (collide(arena, player)) endGame("ゲームオーバー！");
+            if (collide(arena, player)) endGame();
         }
 
-        function updateScore() {
-            scoreElement.innerText = player.score;
-        }
-
+        function updateScore() { scoreElement.innerText = player.score; }
         function updateMagicDisplay() {
             magicChargesElement.innerText = player.magicCharges;
             btnMagic.disabled = (player.magicCharges <= 0 || !specialToggle.checked);
@@ -585,61 +612,33 @@
             const mins = Math.floor(timeLeft / 60);
             const secs = timeLeft % 60;
             timerElement.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-            if (timeLeft <= 10) timerElement.classList.add('animate-pulse');
-            else timerElement.classList.remove('animate-pulse');
         }
 
         function togglePause() {
             if (isGameOver || !isStarted) return;
             isPaused = !isPaused;
-            if (isPaused) {
-                pauseScreen.classList.remove('hidden');
-                clearInterval(timerInterval);
-            } else {
-                pauseScreen.classList.add('hidden');
-                lastTime = performance.now();
-                startTimer();
-                requestAnimationFrame(update);
-            }
+            if (isPaused) { pauseScreen.classList.remove('hidden'); clearInterval(timerInterval); }
+            else { pauseScreen.classList.add('hidden'); lastTime = performance.now(); startTimer(); requestAnimationFrame(update); }
         }
 
         function manualEndGame() {
             if (!isStarted) return;
-            if (isGameOver) {
-                resetGameToHome();
-                return;
-            }
+            if (isGameOver) { resetGameToHome(); return; }
             if (!isPaused) togglePause();
             quitConfirm.classList.remove('hidden');
         }
 
-        function confirmQuit() {
-            quitConfirm.classList.add('hidden');
-            pauseScreen.classList.add('hidden');
-            endGame("しゅうりょうしました！");
-        }
-
-        function cancelQuit() {
-            quitConfirm.classList.add('hidden');
-            togglePause();
-        }
+        function confirmQuit() { quitConfirm.classList.add('hidden'); pauseScreen.classList.add('hidden'); endGame(); }
+        function cancelQuit() { quitConfirm.classList.add('hidden'); togglePause(); }
 
         function startTimer() {
             clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                if (timeLeft > 0) {
-                    timeLeft--;
-                    updateTimerDisplay();
-                } else {
-                    endGame("タイムアップ！");
-                }
-            }, 1000);
+            timerInterval = setInterval(() => { if (timeLeft > 0) { timeLeft--; updateTimerDisplay(); } else { endGame(); } }, 1000);
         }
 
-        function endGame(title) {
+        function endGame() {
             isGameOver = true;
             clearInterval(timerInterval);
-            gameOverTitle.innerText = title;
             finalScoreElement.innerText = player.score;
             gameOverScreen.classList.remove('hidden');
             draw();
@@ -657,93 +656,44 @@
             requestAnimationFrame(update);
         }
 
-        let dropCounter = 0;
-        let dropInterval = 1000;
-        let lastTime = 0;
-        let isGameOver = false;
-        let isPaused = false;
-        let isStarted = false;
-        let isDownActive = false;
-        let timeLeft = 180;
-        let timerInterval = null;
+        let dropCounter = 0, dropInterval = 1000, lastTime = 0, timeLeft = 180, timerInterval = null;
 
         function update(time = 0) {
             if (isGameOver || isPaused || !isStarted) return;
-            
             const deltaTime = time - lastTime;
             lastTime = time;
-
             if (isLeftActive || isRightActive) {
                 moveTimer += deltaTime;
-                if (moveTimer > MOVE_DELAY) {
-                    if (moveTimer > MOVE_DELAY + MOVE_INTERVAL) {
-                        playerMove(isLeftActive ? -1 : 1);
-                        moveTimer = MOVE_DELAY;
-                    }
-                }
-            } else {
-                moveTimer = 0;
-            }
+                if (moveTimer > MOVE_DELAY) { if (moveTimer > MOVE_DELAY + MOVE_INTERVAL) { playerMove(isLeftActive ? -1 : 1); moveTimer = MOVE_DELAY; } }
+            } else moveTimer = 0;
 
             if (clearingRows.length > 0) {
-                clearAnimCounter--;
-                if (clearAnimCounter <= 0) finishLineClear();
+                clearAnimCounter--; if (clearAnimCounter <= 0) finishLineClear();
             } else {
                 dropCounter += deltaTime;
                 const currentInterval = isDownActive ? dropInterval / 8 : dropInterval;
                 if (dropCounter > currentInterval) playerDrop();
             }
-            draw();
-            requestAnimationFrame(update);
+            draw(); requestAnimationFrame(update);
         }
 
         function resetGameToHome() {
             arena.forEach(row => row.fill(0));
-            player.score = 0;
-            player.queue = [];
-            player.magicCharges = 3;
-            timeLeft = 180;
-            isGameOver = false;
-            isPaused = false;
-            isStarted = false;
-            isDownActive = false;
-            isLeftActive = false;
-            isRightActive = false;
-            clearingRows = [];
-            gameOverScreen.classList.add('hidden');
-            pauseScreen.classList.add('hidden');
-            quitConfirm.classList.add('hidden');
-            startScreen.classList.remove('hidden');
-            updateTimerDisplay();
-            updateScore();
-            updateMagicDisplay();
-            clearInterval(timerInterval);
-            draw();
+            player.score = 0; player.queue = []; player.magicCharges = 3; timeLeft = 180;
+            isGameOver = false; isPaused = false; isStarted = false; isDownActive = false; isLeftActive = false; isRightActive = false;
+            clearingRows = []; gameOverScreen.classList.add('hidden'); pauseScreen.classList.add('hidden');
+            quitConfirm.classList.add('hidden'); startScreen.classList.remove('hidden');
+            updateTimerDisplay(); updateScore(); updateMagicDisplay(); clearInterval(timerInterval); draw();
         }
 
         document.addEventListener('keydown', event => {
             if ([32, 37, 38, 39, 40].includes(event.keyCode)) event.preventDefault();
             if (isGameOver || !isStarted || isPaused || clearingRows.length > 0) return;
-            
-            if (event.keyCode === 37) { 
-                if (!isLeftActive) {
-                    playerMove(-1);
-                    isLeftActive = true;
-                    moveTimer = 0;
-                }
-            } else if (event.keyCode === 39) { 
-                if (!isRightActive) {
-                    playerMove(1);
-                    isRightActive = true;
-                    moveTimer = 0;
-                }
-            } else if (event.keyCode === 40) { 
-                isDownActive = true;
-            } else if (event.keyCode === 32) { 
-                playerRotate(1);
-            }
+            if (event.keyCode === 37) { if (!isLeftActive) { playerMove(-1); isLeftActive = true; moveTimer = 0; } }
+            else if (event.keyCode === 39) { if (!isRightActive) { playerMove(1); isRightActive = true; moveTimer = 0; } }
+            else if (event.keyCode === 40) isDownActive = true;
+            else if (event.keyCode === 32) playerRotate(1);
         });
-
         document.addEventListener('keyup', event => {
             if (event.keyCode === 37) isLeftActive = false;
             if (event.keyCode === 39) isRightActive = false;
@@ -752,60 +702,28 @@
 
         const setupMoveBtn = (id, dir) => {
             const btn = document.getElementById(id);
-            const start = (e) => { 
-                e.preventDefault(); 
-                if (dir === -1) { isLeftActive = true; isRightActive = false; }
-                else { isRightActive = true; isLeftActive = false; }
-                playerMove(dir);
-                moveTimer = 0;
-            };
-            const stop = (e) => { 
-                e.preventDefault(); 
-                if (dir === -1) isLeftActive = false;
-                else isRightActive = false;
-            };
-            btn.addEventListener('touchstart', start);
-            btn.addEventListener('mousedown', start);
-            btn.addEventListener('touchend', stop);
-            btn.addEventListener('mouseup', stop);
-            btn.addEventListener('mouseleave', stop);
+            const start = (e) => { e.preventDefault(); if (dir === -1) { isLeftActive = true; isRightActive = false; } else { isRightActive = true; isLeftActive = false; } playerMove(dir); moveTimer = 0; };
+            const stop = (e) => { e.preventDefault(); if (dir === -1) isLeftActive = false; else isRightActive = false; };
+            btn.addEventListener('touchstart', start, {passive: false}); btn.addEventListener('mousedown', start);
+            btn.addEventListener('touchend', stop); btn.addEventListener('mouseup', stop); btn.addEventListener('mouseleave', stop);
         };
-
         const setupSimpleBtn = (id, onDown, onUp) => {
             const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); onDown(); });
-            btn.addEventListener('mousedown', (e) => { e.preventDefault(); onDown(); });
-            if (onUp) {
-                btn.addEventListener('touchend', (e) => { e.preventDefault(); onUp(); });
-                btn.addEventListener('mouseup', (e) => { e.preventDefault(); onUp(); });
-                btn.addEventListener('mouseleave', (e) => { e.preventDefault(); onUp(); });
-            }
+            const start = (e) => { e.preventDefault(); onDown(); };
+            btn.addEventListener('touchstart', start, {passive: false}); btn.addEventListener('mousedown', start);
+            if (onUp) { const stop = (e) => { e.preventDefault(); onUp(); }; btn.addEventListener('touchend', stop); btn.addEventListener('mouseup', stop); btn.addEventListener('mouseleave', stop); }
         };
 
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (isStarted && !isPaused && !isGameOver) playerRotate(1);
-        });
-        canvas.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            if (isStarted && !isPaused && !isGameOver) playerRotate(1);
-        });
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (isStarted && !isPaused && !isGameOver) playerRotate(1); }, {passive: false});
+        canvas.addEventListener('mousedown', (e) => { e.preventDefault(); if (isStarted && !isPaused && !isGameOver) playerRotate(1); });
 
-        setupMoveBtn('btn-left', -1);
-        setupMoveBtn('btn-right', 1);
-        setupSimpleBtn('btn-down', () => { isDownActive = true; }, () => { isDownActive = false; });
+        setupMoveBtn('btn-left', -1); setupMoveBtn('btn-right', 1);
+        setupSimpleBtn('btn-down', () => isDownActive = true, () => isDownActive = false);
         setupSimpleBtn('btn-rotate', () => playerRotate(1));
         setupSimpleBtn('btn-magic', () => useMagic());
 
-        function resetGame() {
-            resetGameToHome();
-            startGame();
-        }
-
-        updateScore();
-        updateTimerDisplay();
-        updateMagicDisplay();
-        draw();
+        function resetGame() { resetGameToHome(); startGame(); }
+        updateScore(); updateTimerDisplay(); updateMagicDisplay(); draw();
     </script>
 </body>
 </html>
